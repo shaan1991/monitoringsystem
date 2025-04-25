@@ -1,0 +1,128 @@
+/* src/components/AdminPanel.css */
+.admin-panel {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  
+  .admin-actions {
+    display: flex;
+    gap: 12px;
+  }
+  
+  .add-metric-btn {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 10px 20px;
+    font-weight: 600;
+  }
+  
+  .add-metric-btn:hover {
+    background-color: var(--primary-dark);
+  }
+  
+  .clear-all-btn {
+    background-color: #f44336;
+    color: white;
+    padding: 10px 20px;
+    font-weight: 600;
+  }
+  
+  .clear-all-btn:hover {
+    background-color: #d32f2f;
+  }
+  
+  .metrics-list {
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  
+  .metrics-list-header {
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 2.5fr 1fr;
+    align-items: center;
+    background-color: #FAFAFA;
+    padding: 12px 16px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .metrics-list-item {
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 2.5fr 1fr;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .metrics-list-item:last-child {
+    border-bottom: none;
+  }
+  
+  .metric-name {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  
+  .metric-description {
+    font-size: 14px;
+    color: var(--text-light);
+  }
+  
+  .source-type {
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  
+  .source-query {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-bottom: 4px;
+    font-family: monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 300px;
+  }
+  
+  .refresh-interval {
+    font-size: 12px;
+    color: var(--text-light);
+  }
+  
+  .edit-btn {
+    background-color: var(--primary-color);
+    color: white;
+    margin-right: 8px;
+  }
+  
+  .delete-btn {
+    background-color: var(--danger-color);
+    color: white;
+  }
+  
+  .edit-btn:hover {
+    background-color: var(--primary-dark);
+  }
+  
+  .delete-btn:hover {
+    background-color: #D32F2F;
+  }
+  
+  .no-metrics {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-light);
+    font-size: 16px;
+    background-color: #f9f9f9;
+    border-radius: var(--border-radius);
+    margin-top: 16px;
+  }

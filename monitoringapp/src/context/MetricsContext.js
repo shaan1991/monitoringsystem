@@ -1,7 +1,8 @@
 // src/context/MetricsContext.js
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { fetchMetricsConfig as apiFetchConfig, fetchMetricsData as apiFetchData } from '../services/api';
+import { fetchMetricsData as apiFetchData } from '../services/api';
 import { processWeatherMetric } from '../services/weatherApi';
+import MetricsService from '../services/MetricsService';
 
 const MetricsContext = createContext();
 
@@ -12,29 +13,63 @@ export const MetricsProvider = ({ children }) => {
   const [metricsConfig, setMetricsConfig] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [refreshInterval, setRefreshInterval] = useState(60000); // 1 minute default
+  const [refreshInterval, setRefreshInterval] = useState(60000); // Default 1 minute
+  const [offline, setOffline] = useState(false);
+
+  // Monitor online status
+  useEffect(() => {
+    const handleOnline = () => setOffline(false);
+    const handleOffline = () => setOffline(true);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // Set initial status
+    setOffline(!navigator.onLine);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Load metrics configuration
   useEffect(() => {
     const loadConfig = async () => {
+      setLoading(true);
       try {
-        const config = await apiFetchConfig();
+        const config = await MetricsService.getMetricsConfig();
         setMetricsConfig(config);
+        
+        // Also load the refresh interval
+        const interval = await MetricsService.getRefreshInterval();
+        if (interval) {
+          setRefreshInterval(interval);
+        }
       } catch (err) {
         setError('Failed to load metrics configuration');
         console.error('Error loading metrics config:', err);
+      } finally {
+        setLoading(false);
       }
     };
     
     loadConfig();
   }, []);
 
+  // Save refresh interval when it changes
+  useEffect(() => {
+    MetricsService.saveRefreshInterval(refreshInterval)
+      .catch(err => console.error('Error saving refresh interval:', err));
+  }, [refreshInterval]);
+
   // Load and refresh metrics data
   useEffect(() => {
     const loadMetrics = async () => {
+      if (metricsConfig.length === 0) return;
+      
       setLoading(true);
       try {
-        console.log("metricsConfig:", metricsConfig);
         const results = [];
         
         for (const metric of metricsConfig) {
@@ -86,10 +121,7 @@ export const MetricsProvider = ({ children }) => {
       }
     };
 
-    // Skip if no config is loaded yet
-    if (metricsConfig.length === 0) {
-      return;
-    }
+    if (metricsConfig.length === 0) return;
 
     loadMetrics();
     
@@ -122,13 +154,21 @@ export const MetricsProvider = ({ children }) => {
   // Update metrics configuration
   const updateMetricConfig = async (metricId, updates) => {
     try {
-      // Here you would make an API call to update the config in the backend
-      // For now, we'll just update it locally
-      const updatedConfig = metricsConfig.map(config => 
-        config.id === metricId ? { ...config, ...updates } : config
-      );
-      setMetricsConfig(updatedConfig);
-      return true;
+      const result = await MetricsService.updateMetric(metricId, updates);
+      
+      if (result.success) {
+        // Update local state
+        setMetricsConfig(prev => 
+          prev.map(config => config.id === metricId ? { ...config, ...updates } : config)
+        );
+        
+        if (result.warning) {
+          console.warn(result.warning);
+        }
+        
+        return true;
+      }
+      return false;
     } catch (err) {
       console.error('Error updating metric config:', err);
       return false;
@@ -138,9 +178,20 @@ export const MetricsProvider = ({ children }) => {
   // Add new metric to be monitored
   const addMetric = async (newMetric) => {
     try {
-      // API call would go here
-      setMetricsConfig([...metricsConfig, { ...newMetric, id: Date.now().toString() }]);
-      return true;
+      const result = await MetricsService.addMetric(newMetric);
+      
+      if (result.success) {
+        // Update local state with the new id
+        const metricWithId = { ...newMetric, id: result.id || Date.now().toString() };
+        setMetricsConfig(prev => [...prev, metricWithId]);
+        
+        if (result.warning) {
+          console.warn(result.warning);
+        }
+        
+        return true;
+      }
+      return false;
     } catch (err) {
       console.error('Error adding metric:', err);
       return false;
@@ -150,12 +201,39 @@ export const MetricsProvider = ({ children }) => {
   // Remove metric from monitoring
   const removeMetric = async (metricId) => {
     try {
-      // API call would go here
-      setMetricsConfig(metricsConfig.filter(config => config.id !== metricId));
-      return true;
+      const result = await MetricsService.deleteMetric(metricId);
+      
+      if (result.success) {
+        // Update local state
+        setMetricsConfig(prev => prev.filter(config => config.id !== metricId));
+        
+        if (result.warning) {
+          console.warn(result.warning);
+        }
+        
+        return true;
+      }
+      return false;
     } catch (err) {
       console.error('Error removing metric:', err);
       return false;
+    }
+  };
+
+  // Clear all saved metrics
+  const clearAllMetrics = async () => {
+    try {
+      const result = await MetricsService.clearAllMetrics();
+      
+      if (result.success) {
+        setMetricsConfig([]);
+        
+        if (result.warning) {
+          console.warn(result.warning);
+        }
+      }
+    } catch (err) {
+      console.error('Error clearing metrics:', err);
     }
   };
 
@@ -198,7 +276,9 @@ export const MetricsProvider = ({ children }) => {
     updateMetricConfig,
     addMetric,
     removeMetric,
-    analyzeTrend
+    clearAllMetrics,
+    analyzeTrend,
+    offline
   };
 
   return (

@@ -24,6 +24,8 @@ const MetricGrid = ({ metrics }) => {
   
   // Determine status for a metric
   const getStatus = (value, ucl, lcl, criticalThreshold) => {
+    if (value === null || value === undefined) return 'unknown';
+    
     if (criticalThreshold !== null && 
        ((value > criticalThreshold) || 
         (lcl !== null && value < lcl / 2))) {
@@ -33,6 +35,25 @@ const MetricGrid = ({ metrics }) => {
       return 'warning';
     }
     return 'normal';
+  };
+  
+  // Safe rendering of the metric value
+  const renderValue = (value, unit) => {
+    if (value === null || value === undefined) {
+      return (
+        <>
+          <span className="value-number">N/A</span>
+          <span className="value-unit">{unit}</span>
+        </>
+      );
+    }
+    
+    return (
+      <>
+        <span className="value-number">{value.toFixed(2)}</span>
+        <span className="value-unit">{unit}</span>
+      </>
+    );
   };
   
   return (
@@ -45,22 +66,34 @@ const MetricGrid = ({ metrics }) => {
         <div className="col chart">24h Chart</div>
       </div>
       
-      {metrics.map(metric => {
-        const { id, name, currentValue, historicalData, config } = metric;
-        const { ucl, lcl, unit, criticalThreshold } = config;
+      {metrics && metrics.map(metric => {
+        if (!metric) return null;
+        
+        const id = metric.id || 'unknown';
+        const name = metric.name || 'Unknown Metric';
+        const currentValue = metric.currentValue;
+        const historicalData = metric.historicalData || [];
+        const config = metric.config || {};
+        const error = metric.error;
+        
+        const ucl = config.ucl || 0;
+        const lcl = config.lcl || 0;
+        const unit = config.unit || '';
+        const criticalThreshold = config.criticalThreshold;
+        
         const status = getStatus(currentValue, ucl, lcl, criticalThreshold);
-        const trend = analyzeTrend(historicalData);
+        const trend = historicalData.length > 0 ? analyzeTrend(historicalData) : 'unknown';
         
         return (
           <div key={id} className={`grid-row ${status}`}>
             <div className="col name">
               <div className={`status-dot ${status}`}></div>
               <span>{name}</span>
+              {error && <div className="error-message">{error}</div>}
             </div>
             
             <div className="col value">
-              <span className="value-number">{currentValue.toFixed(2)}</span>
-              <span className="value-unit">{unit}</span>
+              {renderValue(currentValue, unit)}
             </div>
             
             <div className="col trend">
@@ -76,13 +109,18 @@ const MetricGrid = ({ metrics }) => {
             
             <div className="col chart">
               <div className="mini-chart">
-                <MetricChart 
-                  data={historicalData} 
-                  ucl={ucl}
-                  lcl={lcl}
-                  criticalThreshold={criticalThreshold}
-                  mini={true}
-                />
+                {historicalData.length > 0 ? (
+                  <MetricChart 
+                    data={historicalData} 
+                    ucl={ucl}
+                    lcl={lcl}
+                    criticalThreshold={criticalThreshold}
+                    unit={unit}
+                    mini={true}
+                  />
+                ) : (
+                  <div className="no-data">No data available</div>
+                )}
               </div>
             </div>
           </div>

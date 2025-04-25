@@ -1,10 +1,10 @@
-// src/components/MetricGrid.js
+// src/components/MetricCard.js
 import React from 'react';
 import { useMetrics } from '../context/MetricsContext';
 import MetricChart from './MetricChart';
-import './MetricGrid.css';
+import './MetricCard.css';
 
-const MetricGrid = ({ metrics }) => {
+const MetricCard = ({ metric }) => {
   const { analyzeTrend } = useMetrics();
   
   // Format trend for display icon
@@ -22,6 +22,39 @@ const MetricGrid = ({ metrics }) => {
     }
   };
   
+  // Safe rendering of the metric value
+  const renderValue = (value, unit) => {
+    if (value === null || value === undefined) {
+      return (
+        <>
+          <span className="value">N/A</span>
+          <span className="unit">{unit}</span>
+        </>
+      );
+    }
+    
+    return (
+      <>
+        <span className="value">{value.toFixed(2)}</span>
+        <span className="unit">{unit}</span>
+      </>
+    );
+  };
+  
+  if (!metric) return null;
+  
+  const id = metric.id || 'unknown';
+  const name = metric.name || 'Unknown Metric';
+  const currentValue = metric.currentValue;
+  const historicalData = metric.historicalData || [];
+  const config = metric.config || {};
+  const error = metric.error;
+  
+  const ucl = config.ucl || 0;
+  const lcl = config.lcl || 0;
+  const unit = config.unit || '';
+  const criticalThreshold = config.criticalThreshold;
+  
   // Determine status for a metric
   const getStatus = (value, ucl, lcl, criticalThreshold) => {
     if (value === null || value === undefined) return 'unknown';
@@ -37,97 +70,67 @@ const MetricGrid = ({ metrics }) => {
     return 'normal';
   };
   
-  // Safe rendering of the metric value
-  const renderValue = (value, unit) => {
-    if (value === null || value === undefined) {
-      return (
-        <>
-          <span className="value-number">N/A</span>
-          <span className="value-unit">{unit}</span>
-        </>
-      );
-    }
-    
-    return (
-      <>
-        <span className="value-number">{value.toFixed(2)}</span>
-        <span className="value-unit">{unit}</span>
-      </>
-    );
-  };
+  const status = getStatus(currentValue, ucl, lcl, criticalThreshold);
+  const trend = historicalData.length > 0 ? analyzeTrend(historicalData) : 'unknown';
   
   return (
-    <div className="metric-grid">
-      <div className="grid-header">
-        <div className="col name">Metric</div>
-        <div className="col value">Current Value</div>
-        <div className="col trend">Trend</div>
-        <div className="col thresholds">Thresholds</div>
-        <div className="col chart">24h Chart</div>
+    <div className={`metric-card ${status}`}>
+      <div className="metric-header">
+        <h3>{name}</h3>
+        <div className={`status-indicator ${status}`}>
+          {status.toUpperCase()}
+        </div>
       </div>
       
-      {metrics && metrics.map(metric => {
-        if (!metric) return null;
+      <div className="metric-description">{config.description}</div>
+      
+      {error && <div className="error-message">{error}</div>}
+      
+      <div className="metric-value-container">
+        <div className="metric-value">
+          {renderValue(currentValue, unit)}
+        </div>
         
-        const id = metric.id || 'unknown';
-        const name = metric.name || 'Unknown Metric';
-        const currentValue = metric.currentValue;
-        const historicalData = metric.historicalData || [];
-        const config = metric.config || {};
-        const error = metric.error;
+        <div className={`trend-indicator ${trend}`}>
+          <span className="trend-icon">{getTrendIcon(trend)}</span>
+          <span>{trend.replace('-', ' ')}</span>
+        </div>
+      </div>
+      
+      <div className="metric-thresholds">
+        <div className="threshold">
+          <span className="threshold-label">UCL</span>
+          <span className="threshold-value">{ucl} {unit}</span>
+        </div>
         
-        const ucl = config.ucl || 0;
-        const lcl = config.lcl || 0;
-        const unit = config.unit || '';
-        const criticalThreshold = config.criticalThreshold;
+        <div className="threshold">
+          <span className="threshold-label">LCL</span>
+          <span className="threshold-value">{lcl} {unit}</span>
+        </div>
         
-        const status = getStatus(currentValue, ucl, lcl, criticalThreshold);
-        const trend = historicalData.length > 0 ? analyzeTrend(historicalData) : 'unknown';
-        
-        return (
-          <div key={id} className={`grid-row ${status}`}>
-            <div className="col name">
-              <div className={`status-dot ${status}`}></div>
-              <span>{name}</span>
-              {error && <div className="error-message">{error}</div>}
-            </div>
-            
-            <div className="col value">
-              {renderValue(currentValue, unit)}
-            </div>
-            
-            <div className="col trend">
-              <div className={`trend-indicator ${trend}`}>
-                <span className="trend-icon">{getTrendIcon(trend)}</span>
-              </div>
-            </div>
-            
-            <div className="col thresholds">
-              <div>UCL: {ucl} {unit}</div>
-              <div>LCL: {lcl} {unit}</div>
-            </div>
-            
-            <div className="col chart">
-              <div className="mini-chart">
-                {historicalData.length > 0 ? (
-                  <MetricChart 
-                    data={historicalData} 
-                    ucl={ucl}
-                    lcl={lcl}
-                    criticalThreshold={criticalThreshold}
-                    unit={unit}
-                    mini={true}
-                  />
-                ) : (
-                  <div className="no-data">No data available</div>
-                )}
-              </div>
-            </div>
+        {criticalThreshold !== null && (
+          <div className="threshold">
+            <span className="threshold-label">Critical</span>
+            <span className="threshold-value">{criticalThreshold} {unit}</span>
           </div>
-        );
-      })}
+        )}
+      </div>
+      
+      <div className="metric-chart">
+        {historicalData.length > 0 ? (
+          <MetricChart 
+            data={historicalData} 
+            ucl={ucl}
+            lcl={lcl}
+            criticalThreshold={criticalThreshold}
+            unit={unit}
+          />
+        ) : (
+          <div className="no-data">No data available</div>
+        )}
+      </div>
     </div>
   );
 };
 
-export default MetricGrid;
+export default MetricCard;
